@@ -1,6 +1,9 @@
 
 from mesa import Model, Agent
 from mesa.time import RandomActivation
+import numpy as np
+import networkx as nx
+import matplotlib.pyplot as plt
 
 
 
