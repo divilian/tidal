@@ -4,6 +4,7 @@ from mesa.time import RandomActivation
 import numpy as np
 import networkx as nx
 import matplotlib.pyplot as plt
+import logging
 
 
 
@@ -14,8 +15,15 @@ class Citizen(Agent):
         self.extraversion = .5  # constant for all agents
         self.confidence = self.model.rng.uniform(0,1,1)[0]
     def step(self):
-        print(f"Hi, I'm agent {self.unique_id}.")
-
+        logging.debug(f"Hi, I'm agent {self.unique_id}.")
+        if self.model.rng.uniform(0,1,1)[0] < self.extraversion:
+            neighnums = list(self.model.graph.neighbors(self.unique_id))
+            neigh = self.model.schedule.agents[self.model.rng.choice(neighnums)]
+            logging.debug(f" ..and I'm communicating to agent {neigh.unique_id}.")
+            neigh.receive_comm(self.opinion, self.confidence)
+    def receive_comm(self, opinion, confidence):
+        logging.debug(f"I'm agent {self.unique_id} and I got {opinion} (with " \
+            f"confidence {confidence:.2f})")
 
 
 class Society(Model):
