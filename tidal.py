@@ -34,14 +34,24 @@ class Society(Model):
             setattr(self, arg, val)
         self.rng = np.random.default_rng(seed=138)
         self.schedule = RandomActivation(self)
+        self.fig, self.ax = plt.subplots()
+        self.iter = 0
         self.graph = nx.erdos_renyi_graph(self.N, .1)
         while not nx.is_connected(self.graph):
             self.graph = nx.erdos_renyi_graph(self.N, .1)
+        self.pos = nx.spring_layout(self.graph)
         for aid in range(self.N):
             citizen = Citizen(aid, self)
             self.schedule.add(citizen)
     def step(self):
         self.schedule.step()
+        self.display()
+    def display(self):
+        nx.draw_networkx(self.graph, pos=self.pos,
+            node_color=[ a.opinion for a in self.schedule.agents ],
+            ax=self.ax)
+        plt.title(f"Iteration {self.iter} of {self.MAX_STEPS}")
+        plt.pause(.2)
 
 
 parser = argparse.ArgumentParser(description="Marina model.")
@@ -63,3 +73,5 @@ if __name__ == "__main__":
 
     for s in range(args.MAX_STEPS):
         soc.step()
+    input("Press ENTER to close.")
+    plt.close(soc.fig)
