@@ -53,7 +53,7 @@ class Society(Model):
         nx.draw_networkx(self.graph, pos=self.pos,
             node_color=[ a.opinion for a in self.schedule.agents ],
             ax=self.ax)
-        plt.title(f"Iteration {self.iter} of {self.MAX_STEPS}")
+        self.ax.set_title(f"Iteration {self.iter} of {self.MAX_STEPS}")
         plt.pause(.2)
 
 
