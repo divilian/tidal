@@ -17,14 +17,14 @@ class Citizen(Agent):
         self.base_confidence = self.model.rng.uniform(0,1,1)[0]
         self.confidence = self.base_confidence
     def step(self):
-        logging.debug(f"Hi, I'm agent {self.unique_id}.")
+        logging.info(f"Hi, I'm agent {self.unique_id}.")
         if self.model.rng.uniform(0,1,1)[0] < self.extraversion:
             neighnums = list(self.model.graph.neighbors(self.unique_id))
             neigh = self.model.schedule.agents[self.model.rng.choice(neighnums)]
-            logging.debug(f" ..and I'm talking at agent {neigh.unique_id}.")
+            logging.info(f" ..and I'm talking at agent {neigh.unique_id}.")
             neigh.receive_comm(self.opinion, self.confidence)
     def receive_comm(self, neigh_opinion, neigh_confidence):
-        logging.debug(f"I'm agent {self.unique_id} and I got {neigh_opinion} "\
+        logging.info(f"I'm agent {self.unique_id} and I got {neigh_opinion} "\
             f"(with confidence {neigh_confidence:.2f})")
         if self.believe(neigh_opinion, neigh_confidence):
             if self.opinion != neigh_opinion:
@@ -47,8 +47,8 @@ class Society(Model):
         self.graph = nx.erdos_renyi_graph(self.N, .2, seed=self.seed)
         while not nx.is_connected(self.graph):
             self.seed += 1
-            logging.warning(f"Incrementing seed to {self.seed}.")
             self.graph = nx.erdos_renyi_graph(self.N, .2, seed=self.seed)
+            logging.debug(f"Incrementing seed to {self.seed}.")
         self.pos = nx.spring_layout(self.graph, seed=self.seed)
         for aid in range(self.N):
             citizen = Citizen(aid, self)
@@ -61,7 +61,7 @@ class Society(Model):
             node_color=[ a.opinion for a in self.schedule.agents ],
             ax=self.ax)
         self.ax.set_title(f"Iteration {self.iter} of {self.MAX_STEPS}")
-        plt.pause(.2)
+        plt.pause(.1)
 
 
 parser = argparse.ArgumentParser(description="Marina model.")
