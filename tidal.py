@@ -59,6 +59,7 @@ class Society(Model):
         self.schedule.step()
         self.iter += 1
     def display(self):
+        plt.cla()
         nx.draw_networkx(self.graph, pos=self.pos,
             node_color=[ a.opinion for a in self.schedule.agents ],
             ax=self.ax)
