@@ -4,6 +4,7 @@ from mesa.time import RandomActivation
 import numpy as np
 import networkx as nx
 import matplotlib.pyplot as plt
+import argparse
 import logging
 
 
@@ -27,17 +28,34 @@ class Citizen(Agent):
 
 
 class Society(Model):
-    def __init__(self, N):
+    def __init__(self, **kwd_args):
         super().__init__()
-        self.N = N
+        for arg, val in kwd_args.items():
+            setattr(self, arg, val)
         self.schedule = RandomActivation(self)
         for aid in range(self.N):
             citizen = Citizen(aid, self)
             self.schedule.add(citizen)
     def step(self):
         self.schedule.step()
+
+
+parser = argparse.ArgumentParser(description="Marina model.")
+parser.add_argument("-n", "--num_sims", type=int, default=1,
+    help="Number of sims to run (1 = single, >1 = batch)")
+parser.add_argument("-N", type=int, default=15, help="Number of agents.")
+parser.add_argument("--MAX_STEPS", type=int, default=50,
+    help="Maximum number of steps before simulation terminates.")
+
             
- 
-soc = Society(5)
-for step in range(6):
-    soc.step()
+
+if __name__ == "__main__":
+
+    # Parse arguments.
+    args = parser.parse_args()
+
+    if args.num_sims == 1:
+        soc = Society(**vars(args))
+
+    for s in range(args.MAX_STEPS):
+        soc.step()
