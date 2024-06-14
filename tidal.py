@@ -10,6 +10,9 @@ import matplotlib.pyplot as plt
 class Citizen(Agent):
     def __init__(self, unique_id, model):
         super().__init__(unique_id, model)
+        self.opinion = self.model.rng.choice(["red","blue"])
+        self.extraversion = .5  # constant for all agents
+        self.confidence = self.model.rng.uniform(0,1,1)[0]
     def step(self):
         print(f"Hi, I'm agent {self.unique_id}.")
 
