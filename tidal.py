@@ -21,7 +21,7 @@ class Citizen(Agent):
         if self.model.rng.uniform(0,1,1)[0] < self.extraversion:
             neighnums = list(self.model.graph.neighbors(self.unique_id))
             neigh = self.model.schedule.agents[self.model.rng.choice(neighnums)]
-            logging.debug(f" ..and I'm communicating to agent {neigh.unique_id}.")
+            logging.debug(f" ..and I'm talking at agent {neigh.unique_id}.")
             neigh.receive_comm(self.opinion, self.confidence)
     def receive_comm(self, neigh_opinion, neigh_confidence):
         logging.debug(f"I'm agent {self.unique_id} and I got {neigh_opinion} "\
