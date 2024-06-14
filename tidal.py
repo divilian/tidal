@@ -27,8 +27,10 @@ class Citizen(Agent):
         logging.debug(f"I'm agent {self.unique_id} and I got {neigh_opinion} "\
             f"(with confidence {neigh_confidence:.2f})")
         if self.believe(neigh_opinion, neigh_confidence):
-            self.opinion = neigh_opinion
-            self.confidence = self.base_confidence
+            if self.opinion != neigh_opinion:
+                self.opinion = neigh_opinion
+                self.confidence = self.base_confidence
+                self.model.display()
     def believe(self, neigh_opinion, neigh_confidence):
         return True
 
@@ -53,7 +55,6 @@ class Society(Model):
             self.schedule.add(citizen)
     def step(self):
         self.schedule.step()
-        self.display()
         self.iter += 1
     def display(self):
         nx.draw_networkx(self.graph, pos=self.pos,
