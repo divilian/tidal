@@ -75,6 +75,8 @@ parser.add_argument("--seed", type=int, default=138, help="Random seed.")
 
 if __name__ == "__main__":
 
+    logging.basicConfig(level=logging.INFO)
+
     # Parse arguments.
     args = parser.parse_args()
 
