@@ -44,15 +44,17 @@ class Society(Model):
         self.schedule = BaseScheduler(self)
         self.fig, self.ax = plt.subplots()
         self.iter = 1
-        self.graph = nx.erdos_renyi_graph(self.N, .2, seed=self.seed)
+        self.graph = self.gen_social_network()
         while not nx.is_connected(self.graph):
             self.seed += 1
-            self.graph = nx.erdos_renyi_graph(self.N, .2, seed=self.seed)
             logging.debug(f"Incrementing seed to {self.seed}.")
+            self.graph = self.gen_social_network()
         self.pos = nx.spring_layout(self.graph, seed=self.seed)
         for aid in range(self.N):
             citizen = Citizen(aid, self)
             self.schedule.add(citizen)
+    def gen_social_network(self):
+        return nx.erdos_renyi_graph(self.N, .12, seed=self.seed)
     def step(self):
         self.schedule.step()
         self.iter += 1
