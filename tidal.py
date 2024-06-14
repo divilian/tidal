@@ -14,7 +14,8 @@ class Citizen(Agent):
         super().__init__(unique_id, model)
         self.opinion = self.model.rng.choice(["red","blue"])
         self.extraversion = .5  # constant for all agents
-        self.confidence = self.model.rng.uniform(0,1,1)[0]
+        self.base_confidence = self.model.rng.uniform(0,1,1)[0]
+        self.confidence = self.base_confidence
     def step(self):
         logging.debug(f"Hi, I'm agent {self.unique_id}.")
         if self.model.rng.uniform(0,1,1)[0] < self.extraversion:
@@ -22,9 +23,14 @@ class Citizen(Agent):
             neigh = self.model.schedule.agents[self.model.rng.choice(neighnums)]
             logging.debug(f" ..and I'm communicating to agent {neigh.unique_id}.")
             neigh.receive_comm(self.opinion, self.confidence)
-    def receive_comm(self, opinion, confidence):
-        logging.debug(f"I'm agent {self.unique_id} and I got {opinion} (with " \
-            f"confidence {confidence:.2f})")
+    def receive_comm(self, neigh_opinion, neigh_confidence):
+        logging.debug(f"I'm agent {self.unique_id} and I got {neigh_opinion} "\
+            f"(with confidence {neigh_confidence:.2f})")
+        if self.believe(neigh_opinion, neigh_confidence):
+            self.opinion = neigh_opinion
+            self.confidence = self.base_confidence
+    def believe(self, neigh_opinion, neigh_confidence):
+        return True
 
 
 class Society(Model):
