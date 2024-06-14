@@ -32,14 +32,16 @@ class Society(Model):
         super().__init__()
         for arg, val in kwd_args.items():
             setattr(self, arg, val)
-        self.rng = np.random.default_rng(seed=138)
+        self.rng = np.random.RandomState(seed=self.seed)
         self.schedule = BaseScheduler(self)
         self.fig, self.ax = plt.subplots()
         self.iter = 1
-        self.graph = nx.erdos_renyi_graph(self.N, .1)
+        self.graph = nx.erdos_renyi_graph(self.N, .2, seed=self.seed)
         while not nx.is_connected(self.graph):
-            self.graph = nx.erdos_renyi_graph(self.N, .1)
-        self.pos = nx.spring_layout(self.graph)
+            self.seed += 1
+            logging.warning(f"Incrementing seed to {self.seed}.")
+            self.graph = nx.erdos_renyi_graph(self.N, .2, seed=self.seed)
+        self.pos = nx.spring_layout(self.graph, seed=self.seed)
         for aid in range(self.N):
             citizen = Citizen(aid, self)
             self.schedule.add(citizen)
@@ -61,6 +63,7 @@ parser.add_argument("-n", "--num_sims", type=int, default=1,
 parser.add_argument("-N", type=int, default=15, help="Number of agents.")
 parser.add_argument("--MAX_STEPS", type=int, default=50,
     help="Maximum number of steps before simulation terminates.")
+parser.add_argument("--seed", type=int, default=138, help="Random seed.")
 
             
 
