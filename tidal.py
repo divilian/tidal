@@ -32,7 +32,11 @@ class Society(Model):
         super().__init__()
         for arg, val in kwd_args.items():
             setattr(self, arg, val)
+        self.rng = np.random.default_rng(seed=138)
         self.schedule = RandomActivation(self)
+        self.graph = nx.erdos_renyi_graph(self.N, .1)
+        while not nx.is_connected(self.graph):
+            self.graph = nx.erdos_renyi_graph(self.N, .1)
         for aid in range(self.N):
             citizen = Citizen(aid, self)
             self.schedule.add(citizen)
