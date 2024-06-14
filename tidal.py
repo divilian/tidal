@@ -1,6 +1,6 @@
 
 from mesa import Model, Agent
-from mesa.time import RandomActivation
+from mesa.time import BaseScheduler
 import numpy as np
 import networkx as nx
 import matplotlib.pyplot as plt
@@ -33,7 +33,7 @@ class Society(Model):
         for arg, val in kwd_args.items():
             setattr(self, arg, val)
         self.rng = np.random.default_rng(seed=138)
-        self.schedule = RandomActivation(self)
+        self.schedule = BaseScheduler(self)
         self.fig, self.ax = plt.subplots()
         self.iter = 0
         self.graph = nx.erdos_renyi_graph(self.N, .1)
