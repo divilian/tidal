@@ -35,7 +35,7 @@ class Society(Model):
         self.rng = np.random.default_rng(seed=138)
         self.schedule = BaseScheduler(self)
         self.fig, self.ax = plt.subplots()
-        self.iter = 0
+        self.iter = 1
         self.graph = nx.erdos_renyi_graph(self.N, .1)
         while not nx.is_connected(self.graph):
             self.graph = nx.erdos_renyi_graph(self.N, .1)
@@ -46,6 +46,7 @@ class Society(Model):
     def step(self):
         self.schedule.step()
         self.display()
+        self.iter += 1
     def display(self):
         nx.draw_networkx(self.graph, pos=self.pos,
             node_color=[ a.opinion for a in self.schedule.agents ],
