@@ -29,9 +29,8 @@ class Citizen(Agent):
         if self.opinion == neigh_opinion:
             self.confidence += (self.model.confidence_malleability *
                 neigh_confidence)
-            if self.confidence > 1:   # ?
-                logging.info(f"Agent {self.unique_id}'s confidence went > 1!")
-        #        self.confidence = 1
+            if self.confidence > 1 and self.model.cap_confidence:
+                self.confidence = 1
         else:
             self.confidence -= (self.model.confidence_malleability *
                 neigh_confidence)
@@ -84,6 +83,8 @@ parser.add_argument("--MAX_STEPS", type=int, default=50,
 parser.add_argument("--seed", type=int, default=138, help="Random seed.")
 parser.add_argument("--confidence_malleability", type=float, default=1/3.,
     help="To what degree is confidence boosted/devastated by (dis)agreement.")
+parser.add_argument("--cap_confidence", type=bool, default=True,
+    help="Impose maximum confidence of 1.0 on each agent?")
 
             
 
