@@ -26,13 +26,20 @@ class Citizen(Agent):
     def receive_comm(self, neigh_opinion, neigh_confidence):
         logging.info(f"I'm agent {self.unique_id} and I got {neigh_opinion} "\
             f"(with confidence {neigh_confidence:.2f})")
-        if self.believe(neigh_opinion, neigh_confidence):
-            if self.opinion != neigh_opinion:
+        if self.opinion == neigh_opinion:
+            self.confidence += (self.model.confidence_malleability *
+                neigh_confidence)
+            if self.confidence > 1:   # ?
+                logging.info(f"Agent {self.unique_id}'s confidence went > 1!")
+        #        self.confidence = 1
+        else:
+            self.confidence -= (self.model.confidence_malleability *
+                neigh_confidence)
+            if self.confidence <= 0:
+                # Okay, I give!
                 self.opinion = neigh_opinion
                 self.confidence = self.base_confidence
-                self.model.display()
-    def believe(self, neigh_opinion, neigh_confidence):
-        return True
+        self.model.display()
 
 
 class Society(Model):
@@ -74,6 +81,8 @@ parser.add_argument("-N", type=int, default=15, help="Number of agents.")
 parser.add_argument("--MAX_STEPS", type=int, default=50,
     help="Maximum number of steps before simulation terminates.")
 parser.add_argument("--seed", type=int, default=138, help="Random seed.")
+parser.add_argument("--confidence_malleability", type=float, default=1/3.,
+    help="To what degree is confidence boosted/devastated by (dis)agreement.")
 
             
 
