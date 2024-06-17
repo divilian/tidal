@@ -38,7 +38,8 @@ class Citizen(Agent):
                 # Okay, I give!
                 self.opinion = neigh_opinion
                 self.confidence = self.base_confidence
-        self.model.display()
+        if not self.model.animate_only_on_step:
+            self.model.display()
 
 
 class Society(Model):
@@ -64,6 +65,8 @@ class Society(Model):
     def step(self):
         self.schedule.step()
         self.iter += 1
+        if self.animate_only_on_step:
+            self.display()
     def display(self):
         plt.cla()
         nx.draw_networkx(self.graph, pos=self.pos,
@@ -83,14 +86,17 @@ parser.add_argument("--MAX_STEPS", type=int, default=50,
 parser.add_argument("--seed", type=int, default=138, help="Random seed.")
 parser.add_argument("--confidence_malleability", type=float, default=1/3.,
     help="To what degree is confidence boosted/devastated by (dis)agreement.")
-parser.add_argument("--cap_confidence", type=bool, default=True,
+parser.add_argument("--cap_confidence", action=argparse.BooleanOptionalAction,
     help="Impose maximum confidence of 1.0 on each agent?")
+parser.add_argument("--animate_only_on_step",
+    action=argparse.BooleanOptionalAction,
+    help="Only draw new animation frame on entire step of sim?")
 
             
 
 if __name__ == "__main__":
 
-    logging.basicConfig(level=logging.INFO)
+    logging.basicConfig(level=logging.WARNING)
 
     # Parse arguments.
     args = parser.parse_args()
