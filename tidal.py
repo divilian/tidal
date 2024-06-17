@@ -94,6 +94,21 @@ class Society(Model):
         if self.cap_confidence:
             self.ax[1].set_xlim((-1,1.05))
         self.ax[1].set_ylim((0, self.N))
+        if self.plot_mean:
+            the_mean = confs.mean()
+            the_median = np.median(confs)
+            self.ax[1].axvline(x=the_mean,
+                color= "red" if the_mean > 0 else "blue",
+                linestyle="dashed")
+            self.ax[1].axvline(x=the_median,
+                color= "red" if the_mean > 0 else "blue", alpha=.2,
+                linestyle="dashed")
+            self.ax[1].text(the_mean + .02, self.N * .9, "mean",
+                color= "red" if the_mean > 0 else "blue",
+                rotation=90)
+            self.ax[1].text(the_median + .02, self.N * .75, "median", alpha=.2,
+                color= "red" if the_mean > 0 else "blue",
+                rotation=90)
         plt.pause(.1)
 
 
@@ -111,6 +126,8 @@ parser.add_argument("--cap_confidence", action=argparse.BooleanOptionalAction,
 parser.add_argument("--animate_only_on_step",
     action=argparse.BooleanOptionalAction,
     help="Only draw new animation frame on entire step of sim?")
+parser.add_argument("--plot_mean", action=argparse.BooleanOptionalAction,
+    help="Plot mean and median confidence on histogram?")
 
             
 
