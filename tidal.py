@@ -69,6 +69,7 @@ class Society(Model):
         plt.cla()
         nx.draw_networkx(self.graph, pos=self.pos,
             node_color=[ a.opinion for a in self.schedule.agents ],
+            node_size=[ a.confidence * 300 + 50 for a in self.schedule.agents ],
             ax=self.ax)
         self.ax.set_title(f"Iteration {self.iter} of {self.MAX_STEPS}")
         plt.pause(.1)
