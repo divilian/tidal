@@ -49,8 +49,10 @@ class Society(Model):
             setattr(self, arg, val)
         self.rng = np.random.RandomState(seed=self.seed)
         self.schedule = BaseScheduler(self)
-        self.fig, self.ax = plt.subplots()
-        self.iter = 1
+        self.fig, self.ax = plt.subplots(nrows=1, ncols=2, figsize=(14,6))
+        self.fig.suptitle(f"Iteration 0 of {self.MAX_STEPS}")
+        self.fig.tight_layout()
+        self.iter = 0
         self.graph = self.gen_social_network()
         while not nx.is_connected(self.graph):
             self.seed += 1
@@ -68,12 +70,30 @@ class Society(Model):
         if self.animate_only_on_step:
             self.display()
     def display(self):
-        plt.cla()
+        self.ax[0].cla()
+        self.ax[1].cla()
         nx.draw_networkx(self.graph, pos=self.pos,
             node_color=[ a.opinion for a in self.schedule.agents ],
             node_size=[ a.confidence * 300 + 50 for a in self.schedule.agents ],
-            ax=self.ax)
-        self.ax.set_title(f"Iteration {self.iter} of {self.MAX_STEPS}")
+            ax=self.ax[0])
+        self.fig.suptitle(f"Iteration {self.iter} of {self.MAX_STEPS}")
+        confs = np.array([ a.confidence if a.opinion == "red" else -a.confidence
+            for a in self.schedule.agents ])
+        confs_blue = confs[confs < 0]
+        confs_gray = confs[confs == 0]
+        confs_red = confs[confs >= 0]
+        if self.cap_confidence:
+            bins = np.linspace(-1, 1, 51)
+        else:
+            max_abs = max(-confs.min(), confs.max())
+            bins = np.linspace(-max_abs, max_abs, 51)
+        self.ax[1].hist([confs_blue, confs_gray, confs_red], bins=bins,
+            color=["blue","gray","red"], width=(bins[1]-bins[0]),
+            edgecolor="black")
+        self.ax[1].set_title("Confidence levels")
+        if self.cap_confidence:
+            self.ax[1].set_xlim((-1,1.05))
+        self.ax[1].set_ylim((0, self.N))
         plt.pause(.1)
 
 
