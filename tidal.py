@@ -22,22 +22,36 @@ class Citizen(Agent):
             neighnums = list(self.model.graph.neighbors(self.unique_id))
             neigh = self.model.schedule.agents[self.model.rng.choice(neighnums)]
             logging.info(f" ..and I'm talking at agent {neigh.unique_id}.")
-            neigh.receive_comm(self.opinion, self.confidence)
-    def receive_comm(self, neigh_opinion, neigh_confidence):
-        logging.info(f"I'm agent {self.unique_id} and I got {neigh_opinion} "\
-            f"(with confidence {neigh_confidence:.2f})")
-        if self.opinion == neigh_opinion:
+            neigh.receive_comm(self)
+    def receive_comm(self, neigh):
+        logging.info(f"I'm agent {self.unique_id} and I got {neigh.opinion} "\
+            f"(with confidence {neigh.confidence:.2f})")
+        if self.opinion == neigh.opinion:
+            orig_self_conf = self.confidence
             self.confidence += (self.model.confidence_malleability *
-                neigh_confidence)
+                neigh.confidence)
             if self.confidence > 1 and self.model.cap_confidence:
                 self.confidence = 1
+            if self.model.bidirectional_influence:
+                neigh.confidence += (self.model.confidence_malleability *
+                    orig_self_conf)
+                if neigh.confidence > 1 and self.model.cap_confidence:
+                    neigh.confidence = 1
         else:
+            orig_self_conf = self.confidence
             self.confidence -= (self.model.confidence_malleability *
-                neigh_confidence)
+                neigh.confidence)
             if self.confidence <= 0:
                 # Okay, I give!
-                self.opinion = neigh_opinion
+                self.opinion = neigh.opinion
                 self.confidence = self.base_confidence
+            if self.model.bidirectional_influence:
+                neigh.confidence -= (self.model.confidence_malleability *
+                    orig_self_conf)
+                if neigh.confidence <= 0:
+                    # Okay, I give!
+                    neigh.opinion = self.opinion
+                    neigh.confidence = neigh.base_confidence
         if not self.model.animate_only_on_step:
             self.model.display()
 
@@ -128,6 +142,9 @@ parser.add_argument("--animate_only_on_step",
     help="Only draw new animation frame on entire step of sim?")
 parser.add_argument("--plot_mean", action=argparse.BooleanOptionalAction,
     help="Plot mean and median confidence on histogram?")
+parser.add_argument("--bidirectional_influence",
+    action=argparse.BooleanOptionalAction,
+    help="Listener also influences speaker (symmetrically)?")
 
             
 
