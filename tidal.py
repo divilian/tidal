@@ -1,6 +1,7 @@
 
 from mesa import Model, Agent
 from mesa.time import BaseScheduler
+from mesa.datacollection import DataCollector
 import numpy as np
 import networkx as nx
 import matplotlib.pyplot as plt
@@ -16,6 +17,8 @@ class Citizen(Agent):
         self.extraversion = .5  # constant for all agents
         self.base_confidence = self.model.rng.uniform(0,1,1)[0]
         self.confidence = self.base_confidence
+        self.interactions_with_alike = 0
+        self.interactions_with_diff = 0
     def step(self):
         logging.info(f"Hi, I'm agent {self.unique_id}.")
         if self.model.rng.uniform(0,1,1)[0] < self.extraversion:
@@ -28,6 +31,7 @@ class Citizen(Agent):
             f"(with confidence {neigh.confidence:.2f})")
         if self.opinion == neigh.opinion:
             orig_self_conf = self.confidence
+            self.interactions_with_alike += 1
             self.confidence += (self.model.confidence_malleability *
                 neigh.confidence)
             if self.confidence > 1 and self.model.cap_confidence:
@@ -38,6 +42,7 @@ class Citizen(Agent):
                 if neigh.confidence > 1 and self.model.cap_confidence:
                     neigh.confidence = 1
         else:
+            self.interactions_with_diff += 1
             orig_self_conf = self.confidence
             self.confidence -= (self.model.confidence_malleability *
                 neigh.confidence)
@@ -63,7 +68,7 @@ class Society(Model):
             setattr(self, arg, val)
         self.rng = np.random.RandomState(seed=self.seed)
         self.schedule = BaseScheduler(self)
-        self.fig, self.ax = plt.subplots(nrows=1, ncols=2, figsize=(14,6))
+        self.fig, self.ax = plt.subplots(nrows=2, ncols=2, figsize=(12,9))
         self.fig.suptitle(f"Iteration 0 of {self.MAX_STEPS}")
         self.fig.tight_layout()
         self.iter = 0
@@ -76,23 +81,44 @@ class Society(Model):
         for aid in range(self.N):
             citizen = Citizen(aid, self)
             self.schedule.add(citizen)
+        self.datacollector = DataCollector(
+            model_reporters={'alikes':Society.num_alikes,
+                'diffs':Society.num_diffs}
+        )
+    def num_alikes(self):
+        return self.sum_agent_vals('interactions_with_alike')
+    def num_diffs(self):
+        return self.sum_agent_vals('interactions_with_diff')
+    def sum_agent_vals(self, agent_param_name):
+        return sum([ getattr(a, agent_param_name)
+                                            for a in self.schedule.agents ])
     def gen_social_network(self):
         return nx.erdos_renyi_graph(self.N, .12, seed=self.seed)
     def step(self):
         self.schedule.step()
         self.iter += 1
+        self.datacollector.collect(self)
         if self.animate_only_on_step:
             self.display()
     def display(self):
-        self.ax[0].cla()
-        self.ax[1].cla()
+        self.display_graph()
+        self.display_confidences()
+        self.display_interactions()
+        self.fig.suptitle(f"Iteration {self.iter} of {self.MAX_STEPS}")
+        plt.pause(.1)
+    def display_graph(self):
+        axes = self.ax[1][0]
+        axes.cla()
         nx.draw_networkx(self.graph, pos=self.pos,
             node_color=[ a.opinion for a in self.schedule.agents ],
             node_size=[ a.confidence * 300 + 50 for a in self.schedule.agents ],
-            ax=self.ax[0])
-        self.fig.suptitle(f"Iteration {self.iter} of {self.MAX_STEPS}")
-        confs = np.array([ a.confidence if a.opinion == "red" else -a.confidence
-            for a in self.schedule.agents ])
+            ax=axes)
+    def display_confidences(self):
+        axes = self.ax[1][1]
+        axes.cla()
+        confs = np.array(
+            [ a.confidence if a.opinion == "red" else -a.confidence
+                                            for a in self.schedule.agents ])
         confs_blue = confs[confs < 0]
         confs_gray = confs[confs == 0]
         confs_red = confs[confs >= 0]
@@ -101,30 +127,41 @@ class Society(Model):
         else:
             max_abs = max(-confs.min(), confs.max())
             bins = np.linspace(-max_abs, max_abs, 51)
-        self.ax[1].hist([confs_blue, confs_gray, confs_red], bins=bins,
+        axes.hist([confs_blue, confs_gray, confs_red], bins=bins,
             color=["blue","gray","red"], width=(bins[1]-bins[0]),
             edgecolor="black")
-        self.ax[1].set_title("Confidence levels")
+        axes.set_title("Confidence levels")
         if self.cap_confidence:
-            self.ax[1].set_xlim((-1,1.05))
-        self.ax[1].set_ylim((0, self.N))
+            axes.set_xlim((-1,1.05))
+        axes.set_ylim((0, self.N))
         if self.plot_mean:
             the_mean = confs.mean()
             the_median = np.median(confs)
-            self.ax[1].axvline(x=the_mean,
+            axes.axvline(x=the_mean,
                 color= "red" if the_mean > 0 else "blue",
                 linestyle="dashed")
-            self.ax[1].axvline(x=the_median,
+            axes.axvline(x=the_median,
                 color= "red" if the_mean > 0 else "blue", alpha=.2,
                 linestyle="dashed")
-            self.ax[1].text(the_mean + .02, self.N * .9, "mean",
+            axes.text(the_mean + .02, self.N * .9, "mean",
                 color= "red" if the_mean > 0 else "blue",
                 rotation=90)
-            self.ax[1].text(the_median + .02, self.N * .75, "median", alpha=.2,
+            axes.text(the_median + .02, self.N * .75, "median", alpha=.2,
                 color= "red" if the_mean > 0 else "blue",
                 rotation=90)
-        plt.pause(.1)
-
+    def display_interactions(self):
+        axes = self.ax[0][1]
+        axes.cla()
+        # Compute pairwise differences of this DF, which gives culumative sums.
+        df = self.datacollector.get_model_vars_dataframe().diff().fillna(0)
+        axes.plot(df.alikes, label="alikes", color="green")
+        axes.plot(df.diffs, label="diffs", color="orange", linestyle="dashed")
+        axes.set_xlim((0,self.MAX_STEPS))
+        axes.set_ylim((0,self.N * self.extraversion))
+        axes.set_title("Interactions (between like colors, and diff colors)")
+        axes.set_xlabel("Iteration")
+        axes.set_ylabel("Number of interactions")
+        axes.legend()
 
 parser = argparse.ArgumentParser(description="Tidal model.")
 parser.add_argument("-n", "--num_sims", type=int, default=1,
