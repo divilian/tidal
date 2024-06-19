@@ -112,7 +112,7 @@ class Society(Model):
         plt.pause(.1)
 
 
-parser = argparse.ArgumentParser(description="Marina model.")
+parser = argparse.ArgumentParser(description="Tidal model.")
 parser.add_argument("-n", "--num_sims", type=int, default=1,
     help="Number of sims to run (1 = single, >1 = batch)")
 parser.add_argument("-N", type=int, default=15, help="Number of agents.")
