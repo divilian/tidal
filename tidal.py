@@ -14,14 +14,13 @@ class Citizen(Agent):
     def __init__(self, unique_id, model):
         super().__init__(unique_id, model)
         self.opinion = self.model.rng.choice(["red","blue"])
-        self.extraversion = .5  # constant for all agents
         self.base_confidence = self.model.rng.uniform(0,1,1)[0]
         self.confidence = self.base_confidence
         self.interactions_with_alike = 0
         self.interactions_with_diff = 0
     def step(self):
         logging.info(f"Hi, I'm agent {self.unique_id}.")
-        if self.model.rng.uniform(0,1,1)[0] < self.extraversion:
+        if self.model.rng.uniform(0,1,1)[0] < self.model.extraversion:
             neighnums = list(self.model.graph.neighbors(self.unique_id))
             neigh = self.model.schedule.agents[self.model.rng.choice(neighnums)]
             logging.info(f" ..and I'm talking at agent {neigh.unique_id}.")
@@ -157,7 +156,7 @@ class Society(Model):
         axes.plot(df.alikes, label="alikes", color="green")
         axes.plot(df.diffs, label="diffs", color="orange", linestyle="dashed")
         axes.set_xlim((0,self.MAX_STEPS))
-        axes.set_ylim((0,self.N * self.extraversion))
+        axes.set_ylim((0,self.N * self.extraversion * 1.2))
         axes.set_title("Interactions (between like colors, and diff colors)")
         axes.set_xlabel("Iteration")
         axes.set_ylabel("Number of interactions")
@@ -182,6 +181,8 @@ parser.add_argument("--plot_mean", action=argparse.BooleanOptionalAction,
 parser.add_argument("--bidirectional_influence",
     action=argparse.BooleanOptionalAction,
     help="Listener also influences speaker (symmetrically)?")
+parser.add_argument("--extraversion", type=float, default=.7,
+    help="Probability of each agent sending message each step.")
 
             
 
