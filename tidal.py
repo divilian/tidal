@@ -103,6 +103,7 @@ class Society(Model):
         self.display_graph()
         self.display_confidences()
         self.display_interactions()
+        self.display_conversions()
         self.fig.suptitle(f"Iteration {self.iter} of {self.MAX_STEPS}")
         plt.pause(.1)
     def display_graph(self):
@@ -149,17 +150,20 @@ class Society(Model):
                 color= "red" if the_mean > 0 else "blue",
                 rotation=90)
     def display_interactions(self):
-        axes = self.ax[0][1]
+        self.display_time_plot(self.ax[0][1], "Interactions (by color)",
+            {'alikes':'green','diffs':'orange'})
+    def display_conversions(self):
+        pass
+    def display_time_plot(self, axes, title, varsColors, initMax=0):
         axes.cla()
         # Compute pairwise differences of this DF, which gives culumative sums.
         df = self.datacollector.get_model_vars_dataframe().diff().fillna(0)
-        axes.plot(df.alikes, label="alikes", color="green")
-        axes.plot(df.diffs, label="diffs", color="orange", linestyle="dashed")
+        for var in varsColors.keys():
+            axes.plot(df[var], label=var, color=varsColors[var])
         axes.set_xlim((0,self.MAX_STEPS))
-        axes.set_ylim((0,self.N * self.extraversion * 1.2))
-        axes.set_title("Interactions (between like colors, and diff colors)")
+        axes.set_ylim((0,max(initMax, self.N * self.extraversion * 1.2)))
+        axes.set_title(title)
         axes.set_xlabel("Iteration")
-        axes.set_ylabel("Number of interactions")
         axes.legend()
 
 parser = argparse.ArgumentParser(description="Tidal model.")
