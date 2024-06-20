@@ -18,6 +18,7 @@ class Citizen(Agent):
         self.confidence = self.base_confidence
         self.interactions_with_alike = 0
         self.interactions_with_diff = 0
+        self.conversions_to = {'red':0, 'blue':0}
     def step(self):
         logging.info(f"Hi, I'm agent {self.unique_id}.")
         if self.model.rng.uniform(0,1,1)[0] < self.model.extraversion:
@@ -47,6 +48,7 @@ class Citizen(Agent):
                 neigh.confidence)
             if self.confidence <= 0:
                 # Okay, I give!
+                self.conversions_to[neigh.opinion] += 1
                 self.opinion = neigh.opinion
                 self.confidence = self.base_confidence
             if self.model.bidirectional_influence:
@@ -54,6 +56,7 @@ class Citizen(Agent):
                     orig_self_conf)
                 if neigh.confidence <= 0:
                     # Okay, I give!
+                    neigh.conversions_to[self.opinion] += 1
                     neigh.opinion = self.opinion
                     neigh.confidence = neigh.base_confidence
         if not self.model.animate_only_on_step:
@@ -82,7 +85,9 @@ class Society(Model):
             self.schedule.add(citizen)
         self.datacollector = DataCollector(
             model_reporters={'alikes':Society.num_alikes,
-                'diffs':Society.num_diffs}
+                'diffs':Society.num_diffs,
+                'convs_to_red':Society.num_conversions_to_red,
+                'convs_to_blue':Society.num_conversions_to_blue}
         )
     def num_alikes(self):
         return self.sum_agent_vals('interactions_with_alike')
@@ -90,6 +95,13 @@ class Society(Model):
         return self.sum_agent_vals('interactions_with_diff')
     def sum_agent_vals(self, agent_param_name):
         return sum([ getattr(a, agent_param_name)
+                                            for a in self.schedule.agents ])
+    def num_conversions_to_red(self):
+        return self.num_conversions_to('red')
+    def num_conversions_to_blue(self):
+        return self.num_conversions_to('blue')
+    def num_conversions_to(self, color):
+        return sum([ getattr(a, 'conversions_to')[color]
                                             for a in self.schedule.agents ])
     def gen_social_network(self):
         return nx.erdos_renyi_graph(self.N, .12, seed=self.seed)
@@ -150,19 +162,26 @@ class Society(Model):
                 color= "red" if the_mean > 0 else "blue",
                 rotation=90)
     def display_interactions(self):
-        self.display_time_plot(self.ax[0][1], "Interactions (by color)",
-            {'alikes':'green','diffs':'orange'})
+        self.display_time_plot(self.ax[0][1], "Interactions (by likeness)",
+            {'alikes':'green','diffs':'orange'},
+            initMax=self.N * self.extraversion)
     def display_conversions(self):
-        pass
-    def display_time_plot(self, axes, title, varsColors, initMax=0):
+        self.display_time_plot(self.ax[0][0], "Conversions (to color)",
+            {'convs_to_red':'red','convs_to_blue':'blue'}, cumu=True,
+            initMax=self.N * self.extraversion)
+    def display_time_plot(self, axes, title, varsColors, cumu=False, initMax=0):
         axes.cla()
+        fudge_factor_initMax = 1.2
         # Compute pairwise differences of this DF, which gives culumative sums.
-        df = self.datacollector.get_model_vars_dataframe().diff().fillna(0)
+        df = self.datacollector.get_model_vars_dataframe()
+        if not cumu:
+            df = df.diff().fillna(0)
         for var in varsColors.keys():
-            axes.plot(df[var], label=var, color=varsColors[var])
+            axes.plot(df[var], label="cumu_" + var if cumu else var,
+            color=varsColors[var])
         axes.set_xlim((0,self.MAX_STEPS))
-        axes.set_ylim((0,max(initMax, self.N * self.extraversion * 1.2)))
-        axes.set_title(title)
+        axes.set_ylim((0,max(df[varsColors.keys()].max().max(), initMax)))
+        axes.set_title("Cumulative " + title.lower() if cumu else title)
         axes.set_xlabel("Iteration")
         axes.legend()
 
