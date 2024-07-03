@@ -186,29 +186,34 @@ class Society(Model):
         axes.set_xlabel("Iteration")
         axes.legend()
 
+
+# Simulation parameters.
 parser = argparse.ArgumentParser(description="Tidal model.")
 parser.add_argument("-n", "--num_sims", type=int, default=1,
     help="Number of sims to run (1 = single, >1 = batch)")
-parser.add_argument("-N", type=int, default=15, help="Number of agents.")
-parser.add_argument("--prop_red", type=float, default=.5,
-    help="Proportion of agents initially red.")
+parser.add_argument("--seed", type=int, default=138, help="Random seed.")
 parser.add_argument("--MAX_STEPS", type=int, default=50,
     help="Maximum number of steps before simulation terminates.")
-parser.add_argument("--seed", type=int, default=138, help="Random seed.")
+
+parser.add_argument("-N", type=int, default=15, help="Number of agents.")
+
+parser.add_argument("--prop_red", type=float, default=.5,
+    help="Proportion of agents initially red.")
 parser.add_argument("--confidence_malleability", type=float, default=1/3.,
     help="To what degree is confidence boosted/devastated by (dis)agreement.")
 parser.add_argument("--cap_confidence", action=argparse.BooleanOptionalAction,
     help="Impose maximum confidence of 1.0 on each agent?")
+parser.add_argument("--bidirectional_influence",
+    action=argparse.BooleanOptionalAction,
+    help="Listener also (symmetrically) influences speaker?")
+parser.add_argument("--extraversion", type=float, default=.7,
+    help="Probability of each agent sending message each step.")
+
 parser.add_argument("--animate_only_on_step",
     action=argparse.BooleanOptionalAction,
     help="Only draw new animation frame on entire step of sim?")
 parser.add_argument("--plot_mean", action=argparse.BooleanOptionalAction,
     help="Plot mean and median confidence on histogram?")
-parser.add_argument("--bidirectional_influence",
-    action=argparse.BooleanOptionalAction,
-    help="Listener also influences speaker (symmetrically)?")
-parser.add_argument("--extraversion", type=float, default=.7,
-    help="Probability of each agent sending message each step.")
 
             
 
