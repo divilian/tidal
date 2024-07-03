@@ -13,7 +13,8 @@ import logging
 class Citizen(Agent):
     def __init__(self, unique_id, model):
         super().__init__(unique_id, model)
-        self.opinion = self.model.rng.choice(["red","blue"])
+        self.opinion = self.model.rng.choice(["red","blue"],
+            p=[model.prop_red, 1-model.prop_red])
         self.base_confidence = self.model.rng.uniform(0,1,1)[0]
         self.confidence = self.base_confidence
         self.interactions_with_alike = 0
@@ -189,6 +190,8 @@ parser = argparse.ArgumentParser(description="Tidal model.")
 parser.add_argument("-n", "--num_sims", type=int, default=1,
     help="Number of sims to run (1 = single, >1 = batch)")
 parser.add_argument("-N", type=int, default=15, help="Number of agents.")
+parser.add_argument("--prop_red", type=float, default=.5,
+    help="Proportion of agents initially red.")
 parser.add_argument("--MAX_STEPS", type=int, default=50,
     help="Maximum number of steps before simulation terminates.")
 parser.add_argument("--seed", type=int, default=138, help="Random seed.")
