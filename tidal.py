@@ -105,7 +105,26 @@ class Society(Model):
         return sum([ getattr(a, 'conversions_to')[color]
                                             for a in self.schedule.agents ])
     def gen_social_network(self):
-        return nx.erdos_renyi_graph(self.N, .12, seed=self.seed)
+        if self.graph_type == 'ER':
+            if self.graph_params is not None:
+                return nx.erdos_renyi_graph(self.N,
+                    float(self.graph_params[0]), seed=self.seed)
+            else:
+                return nx.erdos_renyi_graph(self.N, .1, seed=self.seed)
+        else:
+            if self.graph_params is not None:
+                n1 = int(self.graph_params[0])
+                n2 = int(self.graph_params[1])
+                p11 = float(self.graph_params[2])
+                p12 = float(self.graph_params[3])
+                p22 = float(self.graph_params[4])
+            else:
+                n1 = self.N // 2
+                n2 = self.N // 2
+                p11 = p22 = .25
+                p12 = .01
+            return nx.stochastic_block_model([ n1, n2 ],
+                [[p11, p12], [p12, p22]], seed=self.seed)
     def step(self):
         self.schedule.step()
         self.iter += 1
@@ -196,6 +215,11 @@ parser.add_argument("--MAX_STEPS", type=int, default=50,
     help="Maximum number of steps before simulation terminates.")
 
 parser.add_argument("-N", type=int, default=15, help="Number of agents.")
+parser.add_argument("--graph_type", choices=['ER','SBM'],
+    default='ER', help="Random graph-generating algorithm.")
+parser.add_argument("--graph_params", nargs='+',
+    help="Random graph-generating algorithm parameters (ER: p. "
+        "SBM: n1 n2 p11 p12 p22).")
 
 parser.add_argument("--prop_red", type=float, default=.5,
     help="Proportion of agents initially red.")
