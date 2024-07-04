@@ -7,6 +7,7 @@ import networkx as nx
 import matplotlib.pyplot as plt
 import argparse
 import logging
+from collections import Counter
 
 
 
@@ -45,6 +46,8 @@ class Citizen(Agent):
             neigh.challenge_opinion(orig_self_conf, False)
 
 
+# A messaging citizen influences one agent at a time, to a random one of its
+# graph neighbors.
 class MessagingCitizen(Citizen):
     def __init__(self, unique_id, model):
         super().__init__(unique_id, model)
@@ -59,26 +62,27 @@ class MessagingCitizen(Citizen):
             else:
                 self.challenge_opinion(neigh.confidence, neigh.opinion)
         super().step()
-    def reinforce_opinion(self, neigh_conf, bidirectional=False):
-        orig_self_conf = self.confidence
-        self.interactions_with_alike += 1
-        self.confidence += (self.model.confidence_malleability * neigh_conf)
-        if self.confidence > 1 and self.model.cap_confidence:
-            self.confidence = 1
-        if bidirectional:
-            neigh.reinforce_opinion(orig_self_conf, False)
-    def challenge_opinion(self, neigh_conf, neigh_op, bidirectional=False):
-        self.interactions_with_diff += 1
-        orig_self_conf = self.confidence
-        self.confidence -= (self.model.confidence_malleability * neigh_conf)
-        if self.confidence <= 0:
-            # Okay, I give!
-            self.conversions_to[neigh_op] += 1
-            self.opinion = neigh_op
-            self.confidence = self.base_confidence
-        if bidirectional:
-            neigh.challenge_opinion(orig_self_conf, False)
 
+
+
+# A community citizen receives influence all at once, from all its graph
+# neighbors.
+class CommunityCitizen(Citizen):
+    def __init__(self, unique_id, model):
+        super().__init__(unique_id, model)
+    def step(self):
+        logging.info(f"Hi, I'm community agent {self.unique_id}.")
+        if self.model.rng.uniform(0,1,1)[0] < self.model.extraversion:
+            neighnums = list(self.model.graph.neighbors(self.unique_id))
+            ops = [ self.model.schedule.agents[n].opinion for n in neighnums ]
+            op_ctr = Counter(ops)
+            maj_op = op_ctr.most_common(1)[0][0]
+            community_confidence = op_ctr[maj_op] / len(ops)
+            logging.info(f" ..and I'm listening to {neighnums}.")
+            if self.opinion == maj_op:
+                self.reinforce_opinion(community_confidence)
+            else:
+                self.challenge_opinion(community_confidence, maj_op)
 
 
 class Society(Model):
