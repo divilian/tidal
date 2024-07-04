@@ -23,13 +23,33 @@ class Citizen(Agent):
     def step(self):
         if not self.model.animate_only_on_step:
             self.model.display()
+    def reinforce_opinion(self, reinf_conf, bidirectional=False):
+        orig_self_conf = self.confidence
+        self.interactions_with_alike += 1
+        self.confidence += (self.model.confidence_malleability * reinf_conf)
+        if self.confidence > 1 and self.model.cap_confidence:
+            self.confidence = 1
+        if bidirectional:
+            neigh.reinforce_opinion(orig_self_conf, False)
+    def challenge_opinion(self, challenge_conf, challenge_op,
+            bidirectional=False):
+        self.interactions_with_diff += 1
+        orig_self_conf = self.confidence
+        self.confidence -= (self.model.confidence_malleability * challenge_conf)
+        if self.confidence <= 0:
+            # Okay, I give!
+            self.conversions_to[challenge_op] += 1
+            self.opinion = challenge_op
+            self.confidence = self.base_confidence
+        if bidirectional:
+            neigh.challenge_opinion(orig_self_conf, False)
 
 
 class MessagingCitizen(Citizen):
     def __init__(self, unique_id, model):
         super().__init__(unique_id, model)
     def step(self):
-        logging.info(f"Hi, I'm agent {self.unique_id}.")
+        logging.info(f"Hi, I'm messaging agent {self.unique_id}.")
         if self.model.rng.uniform(0,1,1)[0] < self.model.extraversion:
             neighnums = list(self.model.graph.neighbors(self.unique_id))
             neigh = self.model.schedule.agents[self.model.rng.choice(neighnums)]
