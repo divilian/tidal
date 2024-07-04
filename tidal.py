@@ -21,47 +21,44 @@ class Citizen(Agent):
         self.interactions_with_diff = 0
         self.conversions_to = {'red':0, 'blue':0}
     def step(self):
+        if not self.model.animate_only_on_step:
+            self.model.display()
+
+
+class MessagingCitizen(Citizen):
+    def __init__(self, unique_id, model):
+        super().__init__(unique_id, model)
+    def step(self):
         logging.info(f"Hi, I'm agent {self.unique_id}.")
         if self.model.rng.uniform(0,1,1)[0] < self.model.extraversion:
             neighnums = list(self.model.graph.neighbors(self.unique_id))
             neigh = self.model.schedule.agents[self.model.rng.choice(neighnums)]
             logging.info(f" ..and I'm talking at agent {neigh.unique_id}.")
-            neigh.receive_comm(self)
-    def receive_comm(self, neigh):
-        logging.info(f"I'm agent {self.unique_id} and I got {neigh.opinion} "\
-            f"(with confidence {neigh.confidence:.2f})")
-        if self.opinion == neigh.opinion:
-            orig_self_conf = self.confidence
-            self.interactions_with_alike += 1
-            self.confidence += (self.model.confidence_malleability *
-                neigh.confidence)
-            if self.confidence > 1 and self.model.cap_confidence:
-                self.confidence = 1
-            if self.model.bidirectional_influence:
-                neigh.confidence += (self.model.confidence_malleability *
-                    orig_self_conf)
-                if neigh.confidence > 1 and self.model.cap_confidence:
-                    neigh.confidence = 1
-        else:
-            self.interactions_with_diff += 1
-            orig_self_conf = self.confidence
-            self.confidence -= (self.model.confidence_malleability *
-                neigh.confidence)
-            if self.confidence <= 0:
-                # Okay, I give!
-                self.conversions_to[neigh.opinion] += 1
-                self.opinion = neigh.opinion
-                self.confidence = self.base_confidence
-            if self.model.bidirectional_influence:
-                neigh.confidence -= (self.model.confidence_malleability *
-                    orig_self_conf)
-                if neigh.confidence <= 0:
-                    # Okay, I give!
-                    neigh.conversions_to[self.opinion] += 1
-                    neigh.opinion = self.opinion
-                    neigh.confidence = neigh.base_confidence
-        if not self.model.animate_only_on_step:
-            self.model.display()
+            if self.opinion == neigh.opinion:
+                self.reinforce_opinion(neigh.confidence)
+            else:
+                self.challenge_opinion(neigh.confidence, neigh.opinion)
+        super().step()
+    def reinforce_opinion(self, neigh_conf, bidirectional=False):
+        orig_self_conf = self.confidence
+        self.interactions_with_alike += 1
+        self.confidence += (self.model.confidence_malleability * neigh_conf)
+        if self.confidence > 1 and self.model.cap_confidence:
+            self.confidence = 1
+        if bidirectional:
+            neigh.reinforce_opinion(orig_self_conf, False)
+    def challenge_opinion(self, neigh_conf, neigh_op, bidirectional=False):
+        self.interactions_with_diff += 1
+        orig_self_conf = self.confidence
+        self.confidence -= (self.model.confidence_malleability * neigh_conf)
+        if self.confidence <= 0:
+            # Okay, I give!
+            self.conversions_to[neigh_op] += 1
+            self.opinion = neigh_op
+            self.confidence = self.base_confidence
+        if bidirectional:
+            neigh.challenge_opinion(orig_self_conf, False)
+
 
 
 class Society(Model):
@@ -82,7 +79,7 @@ class Society(Model):
             self.graph = self.gen_social_network()
         self.pos = nx.spring_layout(self.graph, seed=self.seed)
         for aid in range(self.N):
-            citizen = Citizen(aid, self)
+            citizen = globals()[self.agent_class + "Citizen"](aid, self)
             self.schedule.add(citizen)
         self.datacollector = DataCollector(
             model_reporters={'alikes':Society.num_alikes,
@@ -220,6 +217,10 @@ parser.add_argument("--graph_type", choices=['ER','SBM'],
 parser.add_argument("--graph_params", nargs='+',
     help="Random graph-generating algorithm parameters (ER: p. "
         "SBM: n1 n2 p11 p12 p22).")
+
+parser.add_argument("--agent_class", choices=['Messaging','Community'],
+    default='Messaging',
+    help="Prefix of agent class name (prepended to 'Citizen').")
 
 parser.add_argument("--prop_red", type=float, default=.5,
     help="Proportion of agents initially red.")
