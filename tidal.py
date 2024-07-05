@@ -44,6 +44,14 @@ class Citizen(Agent):
             self.confidence = self.base_confidence
         if bidirectional:
             neigh.challenge_opinion(orig_self_conf, False)
+    def balance_opinion(self, challenge_conf, balanced_op):
+        self.confidence += (self.model.confidence_malleability * challenge_conf)
+        if self.confidence > 1 and self.model.cap_confidence:
+            self.confidence = 1
+        if self.opinion != balanced_op:
+            self.conversions_to[balanced_op] += 1
+        self.opinion = balanced_op
+        self.confidence = self.base_confidence
 
 
 # A messaging citizen influences one agent at a time, to a random one of its
@@ -70,19 +78,38 @@ class MessagingCitizen(Citizen):
 class CommunityCitizen(Citizen):
     def __init__(self, unique_id, model):
         super().__init__(unique_id, model)
+        self.peacemaker = self.model.rng.choice([True,False],
+            p=[self.model.prop_peacemakers, 1-self.model.prop_peacemakers])
     def step(self):
-        logging.info(f"Hi, I'm community agent {self.unique_id}.")
+        logging.info(f"Hi, I'm community agent {self.unique_id} "
+            f"{'(peacemaker)' if self.peacemaker else ''}.")
+        # Note: "extraversion" here means propensity to be influenced, not to
+        # influence.
         if self.model.rng.uniform(0,1,1)[0] < self.model.extraversion:
             neighnums = list(self.model.graph.neighbors(self.unique_id))
+            logging.info(f" ..and I'm listening to {neighnums}.")
             ops = [ self.model.schedule.agents[n].opinion for n in neighnums ]
             op_ctr = Counter(ops)
-            maj_op = op_ctr.most_common(1)[0][0]
-            community_confidence = op_ctr[maj_op] / len(ops)
-            logging.info(f" ..and I'm listening to {neighnums}.")
-            if self.opinion == maj_op:
+            # (This will all break if more than 2 opinions.)
+            if (len(op_ctr.most_common(2)) == 2 and
+                op_ctr.most_common(2)[0][0] == op_ctr.most_common(2)[0][1]):
+                # (Necessary to avoid privileging red or blue in case of ties.)
+                logging.info(f" ..choosing desired_op randomly.")
+                desired_op = self.model.rng.choice(["red","blue"])
+            elif self.peacemaker:
+                desired_op = ("red" if op_ctr.most_common(1)[0][0] == "blue"
+                                                                else "blue")
+            else:
+                desired_op = op_ctr.most_common(1)[0][0]
+            logging.info(f" ..desired opinion: {desired_op}")
+            community_confidence = op_ctr[desired_op] / len(ops)
+            if self.opinion == desired_op:
                 self.reinforce_opinion(community_confidence)
             else:
-                self.challenge_opinion(community_confidence, maj_op)
+                if self.peacemaker:
+                    self.balance_opinion(community_confidence, desired_op)
+                else:
+                    self.challenge_opinion(community_confidence, desired_op)
 
 
 class Society(Model):
@@ -165,6 +192,9 @@ class Society(Model):
         nx.draw_networkx(self.graph, pos=self.pos,
             node_color=[ a.opinion for a in self.schedule.agents ],
             node_size=[ a.confidence * 300 + 50 for a in self.schedule.agents ],
+            edgecolors=[ "lightgreen" if a.peacemaker else "black"
+                for a in self.schedule.agents ],
+            linewidths=2.5,
             ax=axes)
     def display_confidences(self):
         axes = self.ax[1][1]
@@ -245,6 +275,9 @@ parser.add_argument("--graph_params", nargs='+',
 parser.add_argument("--agent_class", choices=['Messaging','Community'],
     default='Messaging',
     help="Prefix of agent class name (prepended to 'Citizen').")
+parser.add_argument("--prop_peacemakers", type=float, default=.1,
+    help="Proportion of peacemaker (heterophily-loving) agents "
+        "(Community only).")
 
 parser.add_argument("--prop_red", type=float, default=.5,
     help="Proportion of agents initially red.")
