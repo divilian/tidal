@@ -20,7 +20,7 @@ class Citizen(Agent):
         self.confidence = self.base_confidence
         self.interactions_with_alike = 0
         self.interactions_with_diff = 0
-        self.conversions_to = {'red':0, 'blue':0}
+        self.convs_to = {'red':0, 'blue':0}
     def step(self):
         if not self.model.animate_only_on_step:
             self.model.display()
@@ -39,7 +39,7 @@ class Citizen(Agent):
         self.confidence -= (self.model.confidence_malleability * challenge_conf)
         if self.confidence <= 0:
             # Okay, I give!
-            self.conversions_to[challenge_op] += 1
+            self.record_conversion(challenge_op)
             self.opinion = challenge_op
             self.confidence = self.base_confidence
         if bidirectional:
@@ -49,9 +49,11 @@ class Citizen(Agent):
         if self.confidence > 1 and self.model.cap_confidence:
             self.confidence = 1
         if self.opinion != balanced_op:
-            self.conversions_to[balanced_op] += 1
+            self.record_conversion(balanced_op)
         self.opinion = balanced_op
         self.confidence = self.base_confidence
+    def record_conversion(self, new_opinion):
+        self.convs_to[new_opinion] += 1
 
 
 # A messaging citizen influences one agent at a time, to a random one of its
@@ -80,6 +82,7 @@ class CommunityCitizen(Citizen):
         super().__init__(unique_id, model)
         self.peacemaker = self.model.rng.choice([True,False],
             p=[self.model.prop_peacemakers, 1-self.model.prop_peacemakers])
+        self.pm_convs_to = {'red':0, 'blue':0}
     def step(self):
         logging.info(f"Hi, I'm community agent {self.unique_id} "
             f"{'(peacemaker)' if self.peacemaker else ''}.")
@@ -110,6 +113,10 @@ class CommunityCitizen(Citizen):
                     self.balance_opinion(community_confidence, desired_op)
                 else:
                     self.challenge_opinion(community_confidence, desired_op)
+    def record_conversion(self, new_opinion):
+        super().record_conversion(new_opinion)
+        if self.peacemaker:
+            self.pm_convs_to[new_opinion] += 1
 
 
 class Society(Model):
@@ -136,7 +143,9 @@ class Society(Model):
             model_reporters={'alikes':Society.num_alikes,
                 'diffs':Society.num_diffs,
                 'convs_to_red':Society.num_conversions_to_red,
-                'convs_to_blue':Society.num_conversions_to_blue}
+                'convs_to_blue':Society.num_conversions_to_blue,
+                'peacemaker_convs_to_red':Society.num_pm_conversions_to_red,
+                'peacemaker_convs_to_blue':Society.num_pm_conversions_to_blue}
         )
     def num_alikes(self):
         return self.sum_agent_vals('interactions_with_alike')
@@ -149,8 +158,18 @@ class Society(Model):
         return self.num_conversions_to('red')
     def num_conversions_to_blue(self):
         return self.num_conversions_to('blue')
-    def num_conversions_to(self, color):
-        return sum([ getattr(a, 'conversions_to')[color]
+    def num_pm_conversions_to_red(self):
+        if self.agent_class == 'Community':
+            return self.num_conversions_to('red',True)
+        else:
+            return 0
+    def num_pm_conversions_to_blue(self):
+        if self.agent_class == 'Community':
+            return self.num_conversions_to('blue',True)
+        else:
+            return 0
+    def num_conversions_to(self, color, pm=False):
+        return sum([ getattr(a, 'pm_convs_to' if pm else 'convs_to')[color]
                                             for a in self.schedule.agents ])
     def gen_social_network(self):
         if self.graph_type == 'ER':
@@ -192,7 +211,7 @@ class Society(Model):
         nx.draw_networkx(self.graph, pos=self.pos,
             node_color=[ a.opinion for a in self.schedule.agents ],
             node_size=[ a.confidence * 300 + 50 for a in self.schedule.agents ],
-            edgecolors=[ "lightgreen" if a.peacemaker else "black"
+            edgecolors=[ "lightgreen" if 'peacemaker' in vars(a) and a.peacemaker else "black"
                 for a in self.schedule.agents ],
             linewidths=2.5,
             ax=axes)
@@ -234,24 +253,35 @@ class Society(Model):
                 rotation=90)
     def display_interactions(self):
         self.display_time_plot(self.ax[0][1], "Interactions (by likeness)",
-            {'alikes':'green','diffs':'orange'},
+            {'alikes':['green','solid'],'diffs':['orange','solid']},
             initMax=self.N * self.extraversion)
     def display_conversions(self):
-        self.display_time_plot(self.ax[0][0], "Conversions (to color)",
-            {'convs_to_red':'red','convs_to_blue':'blue'}, cumu=True,
-            initMax=self.N * self.extraversion)
-    def display_time_plot(self, axes, title, varsColors, cumu=False, initMax=0):
+        if self.agent_class == 'Community':
+            self.display_time_plot(self.ax[0][0], "Conversions (to color)",
+                {'convs_to_red':['red','solid'],
+                'convs_to_blue':['blue','solid'],
+                'peacemaker_convs_to_red':['red','dashed'],
+                'peacemaker_convs_to_blue':['blue','dashed']},
+                cumu=True, initMax=self.N * self.extraversion)
+        else:
+            self.display_time_plot(self.ax[0][0], "Conversions (to color)",
+                {'convs_to_red':['red','solid'],
+                'convs_to_blue':['blue','solid']},
+                cumu=True, initMax=self.N * self.extraversion)
+    def display_time_plot(self, axes, title, varsStyles,
+        cumu=False, initMax=0):
         axes.cla()
         fudge_factor_initMax = 1.2
         # Compute pairwise differences of this DF, which gives culumative sums.
         df = self.datacollector.get_model_vars_dataframe()
         if not cumu:
             df = df.diff().fillna(0)
-        for var in varsColors.keys():
+        for var in varsStyles.keys():
             axes.plot(df[var], label="cumu_" + var if cumu else var,
-            color=varsColors[var])
+                color=varsStyles[var][0],
+                linestyle=varsStyles[var][1])
         axes.set_xlim((0,self.MAX_STEPS))
-        axes.set_ylim((0,max(df[varsColors.keys()].max().max(), initMax)))
+        axes.set_ylim((0,max(df[varsStyles.keys()].max().max(), initMax)))
         axes.set_title("Cumulative " + title.lower() if cumu else title)
         axes.set_xlabel("Iteration")
         axes.legend()
