@@ -210,10 +210,20 @@ class Society(Model):
         axes.cla()
         nx.draw_networkx(self.graph, pos=self.pos,
             node_color=[ a.opinion for a in self.schedule.agents ],
-            node_size=[ a.confidence * 300 + 50 for a in self.schedule.agents ],
-            edgecolors=[ "lightgreen" if 'peacemaker' in vars(a) and a.peacemaker else "black"
-                for a in self.schedule.agents ],
-            linewidths=2.5,
+            node_size=[ a.confidence * 300 + 40 for a in self.schedule.agents ],
+            node_shape='o',
+            ax=axes)
+        pm_nodes = { a.unique_id for a in self.schedule.agents
+            if 'peacemaker' in vars(a) and a.peacemaker }
+        pm_graph = self.graph.subgraph(pm_nodes)
+        nx.draw_networkx(pm_graph, pos=self.pos,
+            node_color=[ a.opinion for a in self.schedule.agents
+                                                if a.unique_id in pm_nodes ],
+            node_size=[ a.confidence * 450 + 80 for a in self.schedule.agents
+                                                if a.unique_id in pm_nodes  ],
+            node_shape='s',
+            edgecolors='black',
+            linewidths=3,
             ax=axes)
     def display_confidences(self):
         axes = self.ax[1][1]
@@ -283,7 +293,6 @@ class Society(Model):
         axes.set_xlim((0,self.MAX_STEPS))
         axes.set_ylim((0,max(df[varsStyles.keys()].max().max(), initMax)))
         axes.set_title("Cumulative " + title.lower() if cumu else title)
-        axes.set_xlabel("Iteration")
         axes.legend()
 
 
