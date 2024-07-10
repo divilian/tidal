@@ -80,12 +80,12 @@ class MessagingCitizen(Citizen):
 class CommunityCitizen(Citizen):
     def __init__(self, unique_id, model):
         super().__init__(unique_id, model)
-        self.peacemaker = self.model.rng.choice([True,False],
-            p=[self.model.prop_peacemakers, 1-self.model.prop_peacemakers])
-        self.pm_convs_to = {'red':0, 'blue':0}
+        self.advocate = self.model.rng.choice([True,False],
+            p=[self.model.prop_advocates, 1-self.model.prop_advocates])
+        self.adv_convs_to = {'red':0, 'blue':0}
     def step(self):
         logging.info(f"Hi, I'm community agent {self.unique_id} "
-            f"{'(peacemaker)' if self.peacemaker else ''}.")
+            f"{'(advocate)' if self.advocate else ''}.")
         # Note: "extraversion" here means propensity to be influenced, not to
         # influence.
         if self.model.rng.uniform(0,1,1)[0] < self.model.extraversion:
@@ -99,7 +99,7 @@ class CommunityCitizen(Citizen):
                 # (Necessary to avoid privileging red or blue in case of ties.)
                 logging.info(f" ..choosing desired_op randomly.")
                 desired_op = self.model.rng.choice(["red","blue"])
-            elif self.peacemaker:
+            elif self.advocate:
                 desired_op = ("red" if op_ctr.most_common(1)[0][0] == "blue"
                                                                 else "blue")
             else:
@@ -109,14 +109,14 @@ class CommunityCitizen(Citizen):
             if self.opinion == desired_op:
                 self.reinforce_opinion(community_confidence)
             else:
-                if self.peacemaker:
+                if self.advocate:
                     self.balance_opinion(community_confidence, desired_op)
                 else:
                     self.challenge_opinion(community_confidence, desired_op)
     def record_conversion(self, new_opinion):
         super().record_conversion(new_opinion)
-        if self.peacemaker:
-            self.pm_convs_to[new_opinion] += 1
+        if self.advocate:
+            self.adv_convs_to[new_opinion] += 1
 
 
 class Society(Model):
@@ -144,8 +144,8 @@ class Society(Model):
                 'diffs':Society.num_diffs,
                 'convs_to_red':Society.num_conversions_to_red,
                 'convs_to_blue':Society.num_conversions_to_blue,
-                'peacemaker_convs_to_red':Society.num_pm_conversions_to_red,
-                'peacemaker_convs_to_blue':Society.num_pm_conversions_to_blue}
+                'advocate_convs_to_red':Society.num_adv_conversions_to_red,
+                'advocate_convs_to_blue':Society.num_adv_conversions_to_blue}
         )
     def num_alikes(self):
         return self.sum_agent_vals('interactions_with_alike')
@@ -158,18 +158,18 @@ class Society(Model):
         return self.num_conversions_to('red')
     def num_conversions_to_blue(self):
         return self.num_conversions_to('blue')
-    def num_pm_conversions_to_red(self):
+    def num_adv_conversions_to_red(self):
         if self.agent_class == 'Community':
             return self.num_conversions_to('red',True)
         else:
             return 0
-    def num_pm_conversions_to_blue(self):
+    def num_adv_conversions_to_blue(self):
         if self.agent_class == 'Community':
             return self.num_conversions_to('blue',True)
         else:
             return 0
-    def num_conversions_to(self, color, pm=False):
-        return sum([ getattr(a, 'pm_convs_to' if pm else 'convs_to')[color]
+    def num_conversions_to(self, color, adv=False):
+        return sum([ getattr(a, 'adv_convs_to' if adv else 'convs_to')[color]
                                             for a in self.schedule.agents ])
     def gen_social_network(self):
         if self.graph_type == 'ER':
@@ -213,14 +213,14 @@ class Society(Model):
             node_size=[ a.confidence * 300 + 40 for a in self.schedule.agents ],
             node_shape='o',
             ax=axes)
-        pm_nodes = { a.unique_id for a in self.schedule.agents
-            if 'peacemaker' in vars(a) and a.peacemaker }
-        pm_graph = self.graph.subgraph(pm_nodes)
-        nx.draw_networkx(pm_graph, pos=self.pos,
+        adv_nodes = { a.unique_id for a in self.schedule.agents
+            if 'advocate' in vars(a) and a.advocate }
+        adv_graph = self.graph.subgraph(adv_nodes)
+        nx.draw_networkx(adv_graph, pos=self.pos,
             node_color=[ a.opinion for a in self.schedule.agents
-                                                if a.unique_id in pm_nodes ],
+                                                if a.unique_id in adv_nodes ],
             node_size=[ a.confidence * 450 + 80 for a in self.schedule.agents
-                                                if a.unique_id in pm_nodes  ],
+                                                if a.unique_id in adv_nodes  ],
             node_shape='s',
             edgecolors='black',
             linewidths=3,
@@ -270,8 +270,8 @@ class Society(Model):
             self.display_time_plot(self.ax[0][0], "Conversions (to color)",
                 {'convs_to_red':['red','solid'],
                 'convs_to_blue':['blue','solid'],
-                'peacemaker_convs_to_red':['red','dashed'],
-                'peacemaker_convs_to_blue':['blue','dashed']},
+                'advocate_convs_to_red':['red','dashed'],
+                'advocate_convs_to_blue':['blue','dashed']},
                 cumu=True, initMax=self.N * self.extraversion)
         else:
             self.display_time_plot(self.ax[0][0], "Conversions (to color)",
@@ -314,8 +314,8 @@ parser.add_argument("--graph_params", nargs='+',
 parser.add_argument("--agent_class", choices=['Messaging','Community'],
     default='Messaging',
     help="Prefix of agent class name (prepended to 'Citizen').")
-parser.add_argument("--prop_peacemakers", type=float, default=.1,
-    help="Proportion of peacemaker (heterophily-loving) agents "
+parser.add_argument("--prop_advocates", type=float, default=.1,
+    help="Proportion of advocate (heterophily-loving) agents "
         "(Community only).")
 
 parser.add_argument("--prop_red", type=float, default=.5,
