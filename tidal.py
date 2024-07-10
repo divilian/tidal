@@ -199,14 +199,13 @@ class Society(Model):
         if self.animate_only_on_step:
             self.display()
     def display(self):
-        self.display_graph()
-        self.display_confidences()
-        self.display_interactions()
-        self.display_conversions()
+        self.display_graph(self.ax[1][0])
+        self.display_confidences(self.ax[1][1])
+        self.display_interactions(self.ax[0][1])
+        self.display_conversions(self.ax[0][0])
         self.fig.suptitle(f"Iteration {self.iter} of {self.MAX_STEPS}")
         plt.pause(.1)
-    def display_graph(self):
-        axes = self.ax[1][0]
+    def display_graph(self, axes):
         axes.cla()
         nx.draw_networkx(self.graph, pos=self.pos,
             node_color=[ a.opinion for a in self.schedule.agents ],
@@ -225,8 +224,7 @@ class Society(Model):
             edgecolors='black',
             linewidths=3,
             ax=axes)
-    def display_confidences(self):
-        axes = self.ax[1][1]
+    def display_confidences(self, axes):
         axes.cla()
         confs = np.array(
             [ a.confidence if a.opinion == "red" else -a.confidence
@@ -261,20 +259,20 @@ class Society(Model):
             axes.text(the_median + .02, self.N * .75, "median", alpha=.2,
                 color= "red" if the_mean > 0 else "blue",
                 rotation=90)
-    def display_interactions(self):
-        self.display_time_plot(self.ax[0][1], "Interactions (by likeness)",
+    def display_interactions(self, axes):
+        self.display_time_plot(axes, "Interactions (by likeness)",
             {'alikes':['green','solid'],'diffs':['orange','solid']},
             initMax=self.N * self.extraversion)
-    def display_conversions(self):
+    def display_conversions(self, axes):
         if self.agent_class == 'Community':
-            self.display_time_plot(self.ax[0][0], "Conversions (to color)",
+            self.display_time_plot(axes, "Conversions (to color)",
                 {'convs_to_red':['red','solid'],
                 'convs_to_blue':['blue','solid'],
                 'advocate_convs_to_red':['red','dashed'],
                 'advocate_convs_to_blue':['blue','dashed']},
                 cumu=True, initMax=self.N * self.extraversion)
         else:
-            self.display_time_plot(self.ax[0][0], "Conversions (to color)",
+            self.display_time_plot(axes, "Conversions (to color)",
                 {'convs_to_red':['red','solid'],
                 'convs_to_blue':['blue','solid']},
                 cumu=True, initMax=self.N * self.extraversion)
