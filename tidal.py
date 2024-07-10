@@ -140,8 +140,11 @@ class Society(Model):
             citizen = globals()[self.agent_class + "Citizen"](aid, self)
             self.schedule.add(citizen)
         self.datacollector = DataCollector(
-            model_reporters={'alikes':Society.num_alikes,
+            model_reporters={
+                'alikes':Society.num_alikes,
                 'diffs':Society.num_diffs,
+                'prop_blue':Society.prop_blue,
+                'mean_conf':Society.mean_conf,
                 'convs_to_red':Society.num_conversions_to_red,
                 'convs_to_blue':Society.num_conversions_to_blue,
                 'advocate_convs_to_red':Society.num_adv_conversions_to_red,
@@ -156,6 +159,12 @@ class Society(Model):
                                             for a in self.schedule.agents ])
     def num_conversions_to_red(self):
         return self.num_conversions_to('red')
+    def prop_blue(self):
+        return np.array(
+            [ a.opinion == "blue" for a in self.schedule.agents ]).mean()
+    def mean_conf(self):
+        return (sum([ abs(a.confidence) for a in self.schedule.agents ]) /
+            len(self.schedule.agents))
     def num_conversions_to_blue(self):
         return self.num_conversions_to('blue')
     def num_adv_conversions_to_red(self):
@@ -200,8 +209,8 @@ class Society(Model):
             self.display()
     def display(self):
         self.display_graph(self.ax[1][0])
-        self.display_confidences(self.ax[1][1])
-        self.display_interactions(self.ax[0][1])
+        self.display_confidence_hist(self.ax[1][1])
+        self.display_confidence_polarity(self.ax[0][1])
         self.display_conversions(self.ax[0][0])
         self.fig.suptitle(f"Iteration {self.iter} of {self.MAX_STEPS}")
         plt.pause(.1)
@@ -224,7 +233,7 @@ class Society(Model):
             edgecolors='black',
             linewidths=3,
             ax=axes)
-    def display_confidences(self, axes):
+    def display_confidence_hist(self, axes):
         axes.cla()
         confs = np.array(
             [ a.confidence if a.opinion == "red" else -a.confidence
@@ -259,38 +268,41 @@ class Society(Model):
             axes.text(the_median + .02, self.N * .75, "median", alpha=.2,
                 color= "red" if the_mean > 0 else "blue",
                 rotation=90)
+    def display_confidence_polarity(self, axes):
+        self.display_time_plot(axes, "Polarity/confidence",
+            {'prop_blue':['blue','solid'],
+            'mean_conf':['black','dashed']}, True, 1.0)
     def display_interactions(self, axes):
         self.display_time_plot(axes, "Interactions (by likeness)",
             {'alikes':['green','solid'],'diffs':['orange','solid']},
             initMax=self.N * self.extraversion)
     def display_conversions(self, axes):
         if self.agent_class == 'Community':
-            self.display_time_plot(axes, "Conversions (to color)",
+            self.display_time_plot(axes, "Cumulative conversions (to color)",
                 {'convs_to_red':['red','solid'],
                 'convs_to_blue':['blue','solid'],
                 'advocate_convs_to_red':['red','dashed'],
                 'advocate_convs_to_blue':['blue','dashed']},
                 cumu=True, initMax=self.N * self.extraversion)
         else:
-            self.display_time_plot(axes, "Conversions (to color)",
+            self.display_time_plot(axes, "Cumulative conversions (to color)",
                 {'convs_to_red':['red','solid'],
                 'convs_to_blue':['blue','solid']},
                 cumu=True, initMax=self.N * self.extraversion)
     def display_time_plot(self, axes, title, varsStyles,
         cumu=False, initMax=0):
         axes.cla()
-        fudge_factor_initMax = 1.2
         # Compute pairwise differences of this DF, which gives culumative sums.
         df = self.datacollector.get_model_vars_dataframe()
         if not cumu:
             df = df.diff().fillna(0)
         for var in varsStyles.keys():
-            axes.plot(df[var], label="cumu_" + var if cumu else var,
+            axes.plot(df[var], label=var,
                 color=varsStyles[var][0],
                 linestyle=varsStyles[var][1])
         axes.set_xlim((0,self.MAX_STEPS))
         axes.set_ylim((0,max(df[varsStyles.keys()].max().max(), initMax)))
-        axes.set_title("Cumulative " + title.lower() if cumu else title)
+        axes.set_title(title)
         axes.legend()
 
 
