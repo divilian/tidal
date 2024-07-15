@@ -127,9 +127,10 @@ class Society(Model):
             setattr(self, arg, val)
         self.rng = np.random.RandomState(seed=self.seed)
         self.schedule = BaseScheduler(self)
-        self.fig, self.ax = plt.subplots(nrows=2, ncols=2, figsize=(12,9))
-        self.fig.suptitle(f"Iteration 0 of {self.MAX_STEPS}")
-        self.fig.tight_layout()
+        if self.num_sims == 1:
+            self.fig, self.ax = plt.subplots(nrows=2, ncols=2, figsize=(12,9))
+            self.fig.suptitle(f"Iteration 0 of {self.MAX_STEPS}")
+            self.fig.tight_layout()
         self.iter = 0
         self.graph = self.gen_social_network()
         while not nx.is_connected(self.graph):
@@ -169,7 +170,8 @@ class Society(Model):
     def mean_conf_adv(self):
         return self.mean_conf(True)
     def mean_conf(self, adv=False):
-        nodes = [ a for a in self.schedule.agents if a.advocate == adv ]
+        nodes = [ a for a in self.schedule.agents
+            if 'advocate' not in vars(a)  or  a.advocate == adv ]
         return sum([ abs(n.confidence) for n in nodes ]) / len(nodes)
     def num_conversions_to_blue(self):
         return self.num_conversions_to('blue')
@@ -214,12 +216,13 @@ class Society(Model):
         if self.animate_only_on_step:
             self.display()
     def display(self):
-        self.display_graph(self.ax[1][0])
-        self.display_confidence_hist(self.ax[1][1])
-        self.display_confidence_polarity(self.ax[0][1])
-        self.display_conversions(self.ax[0][0])
-        self.fig.suptitle(f"Iteration {self.iter} of {self.MAX_STEPS}")
-        plt.pause(.1)
+        if self.num_sims == 1:
+            self.display_graph(self.ax[1][0])
+            self.display_confidence_hist(self.ax[1][1])
+            self.display_confidence_polarity(self.ax[0][1])
+            self.display_conversions(self.ax[0][0])
+            self.fig.suptitle(f"Iteration {self.iter} of {self.MAX_STEPS}")
+            plt.pause(.1)
     def display_graph(self, axes):
         axes.cla()
         nx.draw_networkx(self.graph, pos=self.pos,
