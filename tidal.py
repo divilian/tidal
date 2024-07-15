@@ -363,9 +363,16 @@ if __name__ == "__main__":
     args = parser.parse_args()
 
     if args.num_sims == 1:
+
+        # Individual run.
         soc = Society(**vars(args))
 
-    for s in range(args.MAX_STEPS):
-        soc.step()
-    input("Press ENTER to close.")
-    plt.close(soc.fig)
+        for s in range(args.MAX_STEPS):
+            soc.step()
+        input("Press ENTER to close.")
+        plt.close(soc.fig)
+
+    else:
+
+        # Batch run.
+        pass
