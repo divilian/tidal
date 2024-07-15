@@ -105,6 +105,7 @@ class CommunityCitizen(Citizen):
             else:
                 desired_op = op_ctr.most_common(1)[0][0]
             logging.info(f" ..desired opinion: {desired_op}")
+            # TODO: should confidence of neighbors come into play?
             community_confidence = op_ctr[desired_op] / len(ops)
             if self.opinion == desired_op:
                 self.reinforce_opinion(community_confidence)
@@ -144,7 +145,8 @@ class Society(Model):
                 'alikes':Society.num_alikes,
                 'diffs':Society.num_diffs,
                 'prop_blue':Society.prop_blue,
-                'mean_conf':Society.mean_conf,
+                'mean_conf_reg':Society.mean_conf_reg,
+                'mean_conf_adv':Society.mean_conf_adv,
                 'convs_to_red':Society.num_conversions_to_red,
                 'convs_to_blue':Society.num_conversions_to_blue,
                 'advocate_convs_to_red':Society.num_adv_conversions_to_red,
@@ -162,9 +164,13 @@ class Society(Model):
     def prop_blue(self):
         return np.array(
             [ a.opinion == "blue" for a in self.schedule.agents ]).mean()
-    def mean_conf(self):
-        return (sum([ abs(a.confidence) for a in self.schedule.agents ]) /
-            len(self.schedule.agents))
+    def mean_conf_reg(self):
+        return self.mean_conf(False)
+    def mean_conf_adv(self):
+        return self.mean_conf(True)
+    def mean_conf(self, adv=False):
+        nodes = [ a for a in self.schedule.agents if a.advocate == adv ]
+        return sum([ abs(n.confidence) for n in nodes ]) / len(nodes)
     def num_conversions_to_blue(self):
         return self.num_conversions_to('blue')
     def num_adv_conversions_to_red(self):
@@ -271,7 +277,8 @@ class Society(Model):
     def display_confidence_polarity(self, axes):
         self.display_time_plot(axes, "Polarity/confidence",
             {'prop_blue':['blue','solid'],
-            'mean_conf':['black','dashed']}, True, 1.0)
+            'mean_conf_adv':['green','dashed'],
+            'mean_conf_reg':['black','dotted']}, True, 1.0)
     def display_interactions(self, axes):
         self.display_time_plot(axes, "Interactions (by likeness)",
             {'alikes':['green','solid'],'diffs':['orange','solid']},
