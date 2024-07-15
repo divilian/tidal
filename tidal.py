@@ -7,6 +7,7 @@ import networkx as nx
 import matplotlib.pyplot as plt
 import argparse
 import logging
+import sys
 from collections import Counter
 
 
@@ -125,6 +126,9 @@ class Society(Model):
         super().__init__()
         for arg, val in kwd_args.items():
             setattr(self, arg, val)
+        if self.seed is None:
+            self.rng = np.random.RandomState()
+            self.seed = self.rng.randint(0, 2**32-1)
         self.rng = np.random.RandomState(seed=self.seed)
         self.schedule = BaseScheduler(self)
         if self.num_sims == 1:
@@ -320,7 +324,7 @@ class Society(Model):
 parser = argparse.ArgumentParser(description="Tidal model.")
 parser.add_argument("-n", "--num_sims", type=int, default=1,
     help="Number of sims to run (1 = single, >1 = batch)")
-parser.add_argument("--seed", type=int, default=138, help="Random seed.")
+parser.add_argument("--seed", type=int, default=None, help="Random seed.")
 parser.add_argument("--MAX_STEPS", type=int, default=50,
     help="Maximum number of steps before simulation terminates.")
 
