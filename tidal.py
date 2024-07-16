@@ -22,7 +22,10 @@ class Citizen(Agent):
         self.interactions_with_alike = 0
         self.interactions_with_diff = 0
         self.convs_to = {'red':0, 'blue':0}
+        self.cumu_convs_to = {'red':0, 'blue':0}
     def step(self):
+        self.convs_to['red'] = 0
+        self.convs_to['blue'] = 0
         if not self.model.animate_only_on_step:
             self.model.display()
     def reinforce_opinion(self, reinf_conf, bidirectional=False):
@@ -55,6 +58,7 @@ class Citizen(Agent):
         self.confidence = self.base_confidence
     def record_conversion(self, new_opinion):
         self.convs_to[new_opinion] += 1
+        self.cumu_convs_to[new_opinion] += 1
 
 
 # A messaging citizen influences one agent at a time, to a random one of its
@@ -87,6 +91,7 @@ class CommunityCitizen(Citizen):
     def step(self):
         logging.info(f"Hi, I'm community agent {self.unique_id} "
             f"{'(advocate)' if self.advocate else ''}.")
+        super().step()
         # Note: "extraversion" here means propensity to be influenced, not to
         # influence.
         if self.model.rng.uniform(0,1,1)[0] < self.model.extraversion:
@@ -154,6 +159,8 @@ class Society(Model):
                 'mean_conf_adv':Society.mean_conf_adv,
                 'convs_to_red':Society.num_conversions_to_red,
                 'convs_to_blue':Society.num_conversions_to_blue,
+                'cumu_convs_to_red':Society.num_cumu_conversions_to_red,
+                'cumu_convs_to_blue':Society.num_cumu_conversions_to_blue,
                 'advocate_convs_to_red':Society.num_adv_conversions_to_red,
                 'advocate_convs_to_blue':Society.num_adv_conversions_to_blue}
         )
@@ -166,6 +173,12 @@ class Society(Model):
                                             for a in self.schedule.agents ])
     def num_conversions_to_red(self):
         return self.num_conversions_to('red')
+    def num_conversions_to_blue(self):
+        return self.num_conversions_to('blue')
+    def num_cumu_conversions_to_red(self):
+        return self.num_cumu_conversions_to('red')
+    def num_cumu_conversions_to_blue(self):
+        return self.num_cumu_conversions_to('blue')
     def prop_blue(self):
         return np.array(
             [ a.opinion == "blue" for a in self.schedule.agents ]).mean()
@@ -176,9 +189,8 @@ class Society(Model):
     def mean_conf(self, adv=False):
         nodes = [ a for a in self.schedule.agents
             if 'advocate' not in vars(a)  or  a.advocate == adv ]
+        if len(nodes) == 0: return 0
         return sum([ abs(n.confidence) for n in nodes ]) / len(nodes)
-    def num_conversions_to_blue(self):
-        return self.num_conversions_to('blue')
     def num_adv_conversions_to_red(self):
         if self.agent_class == 'Community':
             return self.num_conversions_to('red',True)
@@ -191,6 +203,9 @@ class Society(Model):
             return 0
     def num_conversions_to(self, color, adv=False):
         return sum([ getattr(a, 'adv_convs_to' if adv else 'convs_to')[color]
+                                            for a in self.schedule.agents ])
+    def num_cumu_conversions_to(self, color):
+        return sum([ getattr(a, 'cumu_convs_to')[color]
                                             for a in self.schedule.agents ])
     def gen_social_network(self):
         if self.graph_type == 'ER':
