@@ -161,6 +161,7 @@ class Society(Model):
                 'mean_conf_adv':Society.mean_conf_adv,
                 'convs_to_red':Society.num_conversions_to_red,
                 'convs_to_blue':Society.num_conversions_to_blue,
+                'prop_maj':Society.prop_maj,
                 'cumu_convs_to_red':Society.num_cumu_conversions_to_red,
                 'cumu_convs_to_blue':Society.num_cumu_conversions_to_blue,
                 'advocate_convs_to_red':Society.num_adv_conversions_to_red,
@@ -209,6 +210,9 @@ class Society(Model):
     def num_cumu_conversions_to(self, color):
         return sum([ getattr(a, 'cumu_convs_to')[color]
                                             for a in self.schedule.agents ])
+    def prop_maj(self):
+        ops = pd.Series([ a.opinion for a in self.schedule.agents ])
+        return ops.value_counts().max() / len(ops)
     def gen_social_network(self):
         if self.graph_type == 'ER':
             if self.graph_params is not None:
@@ -411,9 +415,14 @@ if __name__ == "__main__":
         results['converged'] = ((results.convs_to_red == 0) &
             (results.convs_to_blue == 0))
 
-        conv_by_prop_adv = results.groupby('prop_advocates').converged.mean()
+        conv_by_pa = results.groupby('prop_advocates').converged.mean()
+        prop_maj_by_pa = results.groupby('prop_advocates').prop_maj.mean()
         
         fig, ax = plt.subplots()
-        conv_by_prop_adv.plot(ax=ax)
+        ax.plot(conv_by_pa.index, conv_by_pa, color="green",
+            linestyle="dotted", label="prob_convergence")
+        ax.plot(prop_maj_by_pa.index, prop_maj_by_pa, color="black",
+            label="prop_majority")
         ax.set_ylabel(f'Proportion sims converged at {args.MAX_STEPS} iters')
         ax.set_ylim((-.1,1.1))
+        ax.legend()
