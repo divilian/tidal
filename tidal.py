@@ -10,8 +10,12 @@ import matplotlib.pyplot as plt
 import argparse
 import logging
 import sys
+import warnings
 from collections import Counter
 
+
+# (To suppress uninteresting warning from assortativity calculation.)
+warnings.filterwarnings("ignore", category=RuntimeWarning)
 
 
 class Citizen(Agent):
@@ -162,6 +166,7 @@ class Society(Model):
                 'convs_to_red':Society.num_conversions_to_red,
                 'convs_to_blue':Society.num_conversions_to_blue,
                 'prop_maj':Society.prop_maj,
+                'assortativity':Society.assortativity,
                 'cumu_convs_to_red':Society.num_cumu_conversions_to_red,
                 'cumu_convs_to_blue':Society.num_cumu_conversions_to_blue,
                 'advocate_convs_to_red':Society.num_adv_conversions_to_red,
@@ -213,6 +218,10 @@ class Society(Model):
     def prop_maj(self):
         ops = pd.Series([ a.opinion for a in self.schedule.agents ])
         return ops.value_counts().max() / len(ops)
+    def assortativity(self):
+        nx.set_node_attributes(self.graph,
+            { a.unique_id:a.opinion for a in self.schedule.agents }, 'opinion')
+        return nx.attribute_assortativity_coefficient(self.graph, 'opinion')
     def gen_social_network(self):
         if self.graph_type == 'ER':
             if self.graph_params is not None:
@@ -341,6 +350,32 @@ class Society(Model):
         axes.legend()
 
 
+def plot_batch_run(results):
+    results['converged'] = ((results.convs_to_red == 0) &
+        (results.convs_to_blue == 0))
+
+    conv_by_pa = results.groupby('prop_advocates').converged.mean()
+    prop_maj_by_pa = results.groupby('prop_advocates').prop_maj.mean()
+    assort_by_pa = results.groupby('prop_advocates').assortativity.mean()
+    mean_conf_reg_by_pa = results.groupby('prop_advocates').mean_conf_reg.mean()
+    
+    fig, ax = plt.subplots()
+    ax.plot(conv_by_pa.index, conv_by_pa, color="green",
+        linestyle="dashed", label="probability of entrenchment")
+    ax.plot(prop_maj_by_pa.index, prop_maj_by_pa, color="orange",
+        label="proportion with majority opinion")
+    ax.plot(assort_by_pa.index, assort_by_pa, color="purple",
+        label="assortativity")
+    ax.plot(mean_conf_reg_by_pa.index, mean_conf_reg_by_pa,
+        color="brown", linestyle="dashdot", label="mean confidence")
+    ax.set_ylabel(f'Value at {args.MAX_STEPS} iters')
+    ax.set_ylim((assort_by_pa.min() - .1, 1.1))
+    ax.axhline(0.0, color="gray", linestyle="dotted")
+    ax.axhline(0.5, color="lightgray", linestyle="dotted")
+    ax.axhline(1.0, color="lightgray", linestyle="dotted")
+    ax.legend()
+
+
 # Simulation parameters.
 parser = argparse.ArgumentParser(description="Tidal model.")
 parser.add_argument("-n", "--num_sims", type=int, default=1,
@@ -381,7 +416,7 @@ parser.add_argument("--animate_only_on_step",
 parser.add_argument("--plot_mean", action=argparse.BooleanOptionalAction,
     help="Plot mean and median confidence on histogram?")
 
-            
+
 
 if __name__ == "__main__":
 
@@ -404,25 +439,12 @@ if __name__ == "__main__":
 
         # Batch run.
         parameters = vars(args)
-        parameters['prop_advocates'] = np.arange(.01,.3,.01)
+        parameters['prop_advocates'] = np.arange(0,1.01,.01)
         parameters['agent_class'] = 'Community'
         results = pd.DataFrame(batch_run(Society,
             parameters=parameters,
             number_processes=None,
             iterations=args.num_sims,
             max_steps=300))
-
-        results['converged'] = ((results.convs_to_red == 0) &
-            (results.convs_to_blue == 0))
-
-        conv_by_pa = results.groupby('prop_advocates').converged.mean()
-        prop_maj_by_pa = results.groupby('prop_advocates').prop_maj.mean()
-        
-        fig, ax = plt.subplots()
-        ax.plot(conv_by_pa.index, conv_by_pa, color="green",
-            linestyle="dotted", label="prob_convergence")
-        ax.plot(prop_maj_by_pa.index, prop_maj_by_pa, color="black",
-            label="prop_majority")
-        ax.set_ylabel(f'Proportion sims converged at {args.MAX_STEPS} iters')
-        ax.set_ylim((-.1,1.1))
-        ax.legend()
+        results.to_csv("results.csv", index=None)
+        plot_batch_run(results)
