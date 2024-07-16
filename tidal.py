@@ -2,7 +2,9 @@
 from mesa import Model, Agent
 from mesa.time import BaseScheduler
 from mesa.datacollection import DataCollector
+from mesa import batch_run
 import numpy as np
+import pandas as pd
 import networkx as nx
 import matplotlib.pyplot as plt
 import argparse
@@ -397,4 +399,21 @@ if __name__ == "__main__":
     else:
 
         # Batch run.
-        pass
+        parameters = vars(args)
+        parameters['prop_advocates'] = np.arange(.01,.3,.01)
+        parameters['agent_class'] = 'Community'
+        results = pd.DataFrame(batch_run(Society,
+            parameters=parameters,
+            number_processes=None,
+            iterations=args.num_sims,
+            max_steps=300))
+
+        results['converged'] = ((results.convs_to_red == 0) &
+            (results.convs_to_blue == 0))
+
+        conv_by_prop_adv = results.groupby('prop_advocates').converged.mean()
+        
+        fig, ax = plt.subplots()
+        conv_by_prop_adv.plot(ax=ax)
+        ax.set_ylabel(f'Proportion sims converged at {args.MAX_STEPS} iters')
+        ax.set_ylim((-.1,1.1))
